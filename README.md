@@ -16,7 +16,7 @@ for sidebars that are not a page list.
 
 ```toml
 [dependencies]
-cosmic-ext-widgets = { git = "https://github.com/entro314-labs/cosmic-ext-widgets" }
+cosmic-ext-widgets = { git = "https://github.com/Magnetar-OS/cosmic-ext-widgets" }
 ```
 
 libcosmic is unpinned here, as in every COSMIC application. Your `Cargo.lock`

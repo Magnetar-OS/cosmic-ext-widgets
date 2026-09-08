@@ -7,7 +7,7 @@ edition = "2024"
 # and link it without absorbing it.
 license = "MPL-2.0"
 description = "Widgets libcosmic does not have: an animated reveal, a nav rail, and a sidebar that moves between them"
-repository = "https://github.com/entro314-labs/cosmic-ext-widgets"
+repository = "https://github.com/Magnetar-OS/cosmic-ext-widgets"
 rust-version = "1.98.0"
 
 [dependencies]
