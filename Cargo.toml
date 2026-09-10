@@ -10,6 +10,11 @@ description = "Widgets libcosmic does not have: an animated reveal, a nav rail, 
 repository = "https://github.com/Magnetar-OS/cosmic-ext-widgets"
 readme = "README.md"
 rust-version = "1.98.1"
+# Not on crates.io, and not by choice: these widgets are built on libcosmic,
+# which is only published as a git repository. crates.io rejects git
+# dependencies, so the only way to consume this crate is the way every COSMIC
+# application consumes libcosmic itself — by git, at a tag.
+publish = false
 
 [features]
 default = ["a11y"]
