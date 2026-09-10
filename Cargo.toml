@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-ext-widgets"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 # MPL-2.0, like libcosmic whose widget patterns this crate extends, and like
 # the cosmic-pim substrate. The applications that link it are GPL-3.0-only
@@ -8,7 +8,16 @@ edition = "2024"
 license = "MPL-2.0"
 description = "Widgets libcosmic does not have: an animated reveal, a nav rail, and a sidebar that moves between them"
 repository = "https://github.com/Magnetar-OS/cosmic-ext-widgets"
+readme = "README.md"
 rust-version = "1.98.1"
+
+[features]
+default = ["a11y"]
+# Accessible names for the rail's icon-only buttons, whose label is otherwise
+# only in a tooltip and so reaches nothing but the eye. On by default because
+# libcosmic's own default features include `a11y`, and because the setter this
+# needs — `button::name` — is itself behind that feature upstream.
+a11y = ["libcosmic/a11y"]
 
 [dependencies]
 # Unpinned, like every COSMIC application: the consumer's Cargo.lock decides the
@@ -16,5 +25,12 @@ rust-version = "1.98.1"
 # with the application's own libcosmic rather than building two.
 libcosmic = { git = "https://github.com/pop-os/libcosmic.git" }
 
+[lints.rust]
+missing_docs = "warn"
+
+# Pedantic as warnings, not denials — the ecosystem standard. Declared here
+# rather than only on the `just check` command line so that rust-analyzer
+# reports the same set an editor away from the terminal.
 [lints.clippy]
 all = "warn"
+pedantic = "warn"
