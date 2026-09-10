@@ -27,10 +27,13 @@
 //! }
 //! ```
 
+use std::time::Duration;
+
 use cosmic::Element;
+use cosmic::iced::animation::Easing;
 use cosmic::widget;
 
-use crate::reveal::reveal;
+use crate::reveal::{Edge, reveal};
 
 /// How wide the sidebar is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -38,16 +41,34 @@ pub enum Mode {
     /// The full sidebar.
     #[default]
     Expanded,
-    /// Icons only — see [`rail`](crate::rail).
+    /// Icons only — see [`rail()`](crate::rail()).
     Rail,
     /// Nothing, once the closing slide has finished.
     Hidden,
 }
 
+impl Mode {
+    /// The next mode in the cycle a nav-bar toggle walks: expanded, then
+    /// rail, then hidden, then back to expanded.
+    #[must_use]
+    pub const fn next(self) -> Self {
+        match self {
+            Self::Expanded => Self::Rail,
+            Self::Rail => Self::Hidden,
+            Self::Hidden => Self::Expanded,
+        }
+    }
+}
+
 /// Where the sidebar is, and whether its element should still be in the tree.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// Not [`Eq`]: the easing function it carries is not.
+#[derive(Debug, Clone, PartialEq)]
 pub struct SidebarState {
     mode: Mode,
+    edge: Edge,
+    duration: Duration,
+    easing: Easing,
     /// The element is in the tree: something is visible or still moving.
     present: bool,
     /// The element has been dropped from the tree at least once, so its next
@@ -62,15 +83,46 @@ impl Default for SidebarState {
 }
 
 impl SidebarState {
+    /// A sidebar starting in `mode`, sliding out past the left edge in
+    /// [`reveal`]'s default 200ms ease-out cubic.
     #[must_use]
     pub fn new(mode: Mode) -> Self {
         Self {
             mode,
+            edge: Edge::Left,
+            duration: Duration::from_millis(200),
+            easing: Easing::EaseOutCubic,
             present: mode != Mode::Hidden,
             reappearing: false,
         }
     }
 
+    /// The edge the sidebar slides out past. Default [`Edge::Left`].
+    ///
+    /// This also decides which way round the two widths sit, so that the
+    /// sidebar stays against its own edge as one gives way to the other.
+    #[must_use]
+    pub const fn edge(mut self, edge: Edge) -> Self {
+        self.edge = edge;
+        self
+    }
+
+    /// Length of the slide. See [`Reveal::duration`](crate::Reveal::duration).
+    #[must_use]
+    pub const fn duration(mut self, duration: Duration) -> Self {
+        self.duration = duration;
+        self
+    }
+
+    /// How the slide is interpolated. See
+    /// [`Reveal::easing`](crate::Reveal::easing).
+    #[must_use]
+    pub const fn easing(mut self, easing: Easing) -> Self {
+        self.easing = easing;
+        self
+    }
+
+    /// The mode the sidebar is in, or on its way to.
     #[must_use]
     pub const fn mode(&self) -> Mode {
         self.mode
@@ -78,11 +130,16 @@ impl SidebarState {
 
     /// Move to `mode`. Idempotent, so it is safe to call on every event that
     /// might have changed the answer, such as a window resize.
-    pub fn set_mode(&mut self, mode: Mode) {
+    pub const fn set_mode(&mut self, mode: Mode) {
         self.mode = mode;
-        if mode != Mode::Hidden {
+        if !matches!(mode, Mode::Hidden) {
             self.present = true;
         }
+    }
+
+    /// Move to [`Mode::next`] — what a nav-bar toggle wants.
+    pub const fn cycle(&mut self) {
+        self.set_mode(self.mode.next());
     }
 
     /// Handle the message given to [`view`](Self::view) as `on_closed`.
@@ -90,8 +147,8 @@ impl SidebarState {
     /// Fires whenever either width settles closed, including when the
     /// expanded sidebar has finished giving way to the rail, so it only acts
     /// when the whole sidebar is meant to be gone.
-    pub fn closed(&mut self) {
-        if self.mode == Mode::Hidden {
+    pub const fn closed(&mut self) {
+        if matches!(self.mode, Mode::Hidden) {
             self.present = false;
             self.reappearing = true;
         }
@@ -113,21 +170,33 @@ impl SidebarState {
             return None;
         }
 
-        let row = widget::row::with_capacity(2)
-            .push(
-                reveal(expanded)
-                    .open(self.mode == Mode::Expanded)
-                    .start_closed(self.reappearing)
-                    .on_closed(on_closed.clone()),
-            )
-            .push(
-                reveal(rail)
-                    .open(self.mode == Mode::Rail)
+        let slide = |content: Element<'a, Message>, open: bool, on_closed: Message| {
+            Element::from(
+                reveal(content)
+                    .open(open)
+                    .edge(self.edge)
+                    .duration(self.duration)
+                    .easing(self.easing)
                     .start_closed(self.reappearing)
                     .on_closed(on_closed),
-            );
+            )
+        };
 
-        Some(row.into())
+        let expanded = slide(
+            expanded.into(),
+            self.mode == Mode::Expanded,
+            on_closed.clone(),
+        );
+        let rail = slide(rail.into(), self.mode == Mode::Rail, on_closed);
+
+        // The wider view leads on the side the sidebar is anchored to, so
+        // that whichever width is showing stays against that edge.
+        Some(match self.edge {
+            Edge::Left => widget::row::with_children(vec![expanded, rail]).into(),
+            Edge::Right => widget::row::with_children(vec![rail, expanded]).into(),
+            Edge::Top => widget::column::with_children(vec![expanded, rail]).into(),
+            Edge::Bottom => widget::column::with_children(vec![rail, expanded]).into(),
+        })
     }
 }
 
@@ -181,5 +250,38 @@ mod tests {
         state.set_mode(Mode::Rail);
         assert!(state.present);
         assert_eq!(state.mode(), Mode::Rail);
+    }
+
+    #[test]
+    fn cycling_walks_all_three_and_comes_back() {
+        let mut state = SidebarState::default();
+        assert_eq!(state.mode(), Mode::Expanded);
+        state.cycle();
+        assert_eq!(state.mode(), Mode::Rail);
+        state.cycle();
+        assert_eq!(state.mode(), Mode::Hidden);
+        state.cycle();
+        assert_eq!(state.mode(), Mode::Expanded);
+    }
+
+    #[test]
+    fn cycling_to_hidden_keeps_the_element_until_the_slide_reports_in() {
+        let mut state = SidebarState::new(Mode::Rail);
+        state.cycle();
+        assert_eq!(state.mode(), Mode::Hidden);
+        assert!(state.present);
+        state.closed();
+        assert!(!state.present);
+    }
+
+    #[test]
+    fn the_animation_settings_are_carried_not_dropped() {
+        let state = SidebarState::default()
+            .edge(Edge::Right)
+            .duration(Duration::from_millis(80))
+            .easing(Easing::Linear);
+        assert_eq!(state.edge, Edge::Right);
+        assert_eq!(state.duration, Duration::from_millis(80));
+        assert_eq!(state.easing, Easing::Linear);
     }
 }
