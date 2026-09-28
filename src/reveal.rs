@@ -115,6 +115,10 @@ pub struct Reveal<'a, Message> {
 impl<Message> Reveal<'_, Message> {
     /// Whether the content is shown. Changing this between views starts the
     /// slide; the widget animates from wherever it currently is.
+    ///
+    /// Input, overlays and widget operations such as focus reach the content
+    /// only once it has settled open, so a focus task aimed inside it should
+    /// be issued after the slide rather than with the change that starts it.
     pub const fn open(mut self, open: bool) -> Self {
         self.open = open;
         self
@@ -304,9 +308,16 @@ impl<Message: Clone> Widget<Message, cosmic::Theme, cosmic::Renderer> for Reveal
         renderer: &cosmic::Renderer,
         operation: &mut dyn Operation,
     ) {
-        // Focus and scroll operations have no business reaching content that
-        // is on its way out.
-        if !self.open {
+        // Focus and scroll operations reach the content only once it has
+        // settled open, the same condition `update` uses: focus landing on
+        // content mid-slide would sit on a widget that hears no keys until
+        // the slide ends, and content on its way out has no business with
+        // either.
+        if !tree
+            .state
+            .downcast_ref::<State>()
+            .settled_open(Instant::now())
+        {
             return;
         }
         operation.container(None, layout.bounds());
@@ -693,5 +704,94 @@ mod tests {
             (halfway - 0.5).abs() < 0.01,
             "linear halfway, got {halfway}"
         );
+    }
+
+    /// `operate` driven through a real widget tree, with a focusable child.
+    mod operations {
+        use cosmic::iced::advanced::widget::operation::Focusable;
+        use cosmic::iced::advanced::widget::{Id, Operation};
+        use cosmic::iced::{Font, Pixels};
+        use cosmic::widget;
+
+        use super::*;
+
+        /// Long enough that no test outruns an opening slide.
+        const SLOW: Duration = Duration::from_secs(60);
+
+        fn renderer() -> cosmic::Renderer {
+            iced_tiny_skia::Renderer::new(Font::default(), Pixels(14.0))
+        }
+
+        fn input(open: bool) -> Element<'static, ()> {
+            reveal(widget::text_input("", ""))
+                .open(open)
+                .duration(SLOW)
+                .into()
+        }
+
+        /// Counts the focusable widgets an operation reaches, as the
+        /// runtime's `focus_next` walks them.
+        #[derive(Default)]
+        struct Focusables(usize);
+
+        impl Operation for Focusables {
+            fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
+                operate(self);
+            }
+
+            fn focusable(
+                &mut self,
+                _id: Option<&Id>,
+                _bounds: Rectangle,
+                _state: &mut dyn Focusable,
+            ) {
+                self.0 += 1;
+            }
+        }
+
+        /// How many focusable widgets an operation over `element` reaches.
+        fn focusables(element: &mut Element<'_, ()>, tree: &mut Tree) -> usize {
+            let size = Size::new(200.0, 32.0);
+            let node = layout::Node::with_children(size, vec![layout::Node::new(size)]);
+            let mut focusables = Focusables::default();
+            element
+                .as_widget_mut()
+                .operate(tree, Layout::new(&node), &renderer(), &mut focusables);
+            focusables.0
+        }
+
+        #[test]
+        fn settled_open_content_is_focusable() {
+            let mut element = input(true);
+            let mut tree = Tree::new(&element);
+            assert_eq!(focusables(&mut element, &mut tree), 1);
+        }
+
+        #[test]
+        fn closing_content_is_not_focusable() {
+            let element = input(true);
+            let mut tree = Tree::new(&element);
+            tree.state
+                .downcast_mut::<State>()
+                .retarget(false, SLOW, EASE, Instant::now());
+
+            let mut element = input(false);
+            assert_eq!(focusables(&mut element, &mut tree), 0);
+        }
+
+        #[test]
+        fn opening_content_is_not_focusable_until_it_settles() {
+            // Focus landing here mid-slide would sit on a widget that hears
+            // no keys until the slide ends: `update` is gated on the content
+            // having settled open.
+            let element = input(false);
+            let mut tree = Tree::new(&element);
+            tree.state
+                .downcast_mut::<State>()
+                .retarget(true, SLOW, EASE, Instant::now());
+
+            let mut element = input(true);
+            assert_eq!(focusables(&mut element, &mut tree), 0);
+        }
     }
 }

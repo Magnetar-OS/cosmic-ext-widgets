@@ -918,6 +918,7 @@ dependencies = [
 name = "cosmic-ext-widgets"
 version = "1.0.0"
 dependencies = [
+ "iced_tiny_skia",
  "libcosmic",
 ]
 

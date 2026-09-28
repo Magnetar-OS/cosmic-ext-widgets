@@ -30,6 +30,12 @@ a11y = ["libcosmic/a11y"]
 # with the application's own libcosmic rather than building two.
 libcosmic = { git = "https://github.com/pop-os/libcosmic.git" }
 
+[dev-dependencies]
+# A software renderer for the widget-tree tests, which need a `cosmic::Renderer`
+# to hand to `operate` but draw nothing. The same git source as libcosmic, so
+# cargo resolves the very crate libcosmic's renderer is built from.
+iced_tiny_skia = { git = "https://github.com/pop-os/libcosmic.git" }
+
 [lints.rust]
 missing_docs = "warn"
 

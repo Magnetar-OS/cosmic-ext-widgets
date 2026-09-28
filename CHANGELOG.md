@@ -15,6 +15,9 @@ It is consumed by git tag, so each version below is a tag of that name.
   footer, used to make the rail claim the whole window row.
 - A `SidebarState` created in `Mode::Hidden` now slides in the first time it
   is shown, instead of appearing at full width in one frame.
+- Focus and scroll operations no longer reach a `Reveal`'s content while it
+  is still sliding open. Focus could land on content whose keyboard input the
+  widget was still holding back, so the first keys typed were lost.
 - The README's integration and `examples/sidebar.rs` keep libcosmic's
   nav-bar state in step with the sidebar: shown-at-all lives in
   `core.nav_bar_active()` and the mode is derived from it. Following the old
