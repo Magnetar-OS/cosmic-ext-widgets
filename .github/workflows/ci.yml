@@ -15,7 +15,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
       # libcosmic pulls in the system halves of the COSMIC stack; without
       # these its build scripts fail before any of this crate is compiled.
