@@ -8,6 +8,8 @@ It is consumed by git tag, so each version below is a tag of that name.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-09-29
+
 ### Fixed
 
 - `rail` and `nav_rail` stay as narrow as their widest item when a child is
@@ -57,5 +59,6 @@ It is consumed by git tag, so each version below is a tag of that name.
   their accessible name.
 - `examples/sidebar.rs`: a window that runs the three widths.
 
-[Unreleased]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Magnetar-OS/cosmic-ext-widgets/releases/tag/v1.0.0

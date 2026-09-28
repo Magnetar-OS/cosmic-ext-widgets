@@ -916,7 +916,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-ext-widgets"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "iced_tiny_skia",
  "libcosmic",
