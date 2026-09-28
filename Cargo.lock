@@ -920,6 +920,7 @@ version = "1.0.0"
 dependencies = [
  "iced_tiny_skia",
  "libcosmic",
+ "unicode-segmentation",
 ]
 
 [[package]]

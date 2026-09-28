@@ -11,6 +11,7 @@ use std::borrow::Cow;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, nav_bar, segmented_button, tooltip};
 use cosmic::{Apply, Element};
+use unicode_segmentation::UnicodeSegmentation;
 
 /// The rail surface around a column of [`rail_item`]s.
 ///
@@ -200,10 +201,7 @@ impl<'a, Message: Clone + 'static> From<NavRail<'a, Message>> for Element<'a, Me
             let text = model.text(id).unwrap_or_default();
             let content: Element<'a, Message> = match model.icon(id) {
                 Some(icon) => icon.clone().into(),
-                None => {
-                    widget::text::body(text.chars().next().map(String::from).unwrap_or_default())
-                        .into()
-                }
+                None => widget::text::body(initial(text).to_owned()).into(),
             };
 
             let item = rail_item(
@@ -232,9 +230,29 @@ impl<'a, Message: Clone + 'static> From<NavRail<'a, Message>> for Element<'a, Me
     }
 }
 
+/// What an entry without an icon shows: the first character of its text as a
+/// reader sees it. A flag, an emoji sequence or a letter with a combining
+/// accent is several `char`s, and the first of them alone is a fragment.
+fn initial(text: &str) -> &str {
+    text.graphemes(true).next().unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_entry_without_an_icon_shows_its_first_whole_character() {
+        assert_eq!(initial("Inbox"), "I");
+        assert_eq!(initial("Ημερολόγιο"), "Η");
+        assert_eq!(initial(""), "");
+        // A flag is two regional indicators.
+        assert_eq!(initial("🇬🇷 Athens"), "🇬🇷");
+        // e + combining acute accent.
+        assert_eq!(initial("e\u{301}cole"), "e\u{301}");
+        // woman + ZWJ + laptop.
+        assert_eq!(initial("👩\u{200d}💻 Work"), "👩\u{200d}💻");
+    }
 
     /// The entity itself is message enough to route `on_activate`.
     type Message = segmented_button::Entity;

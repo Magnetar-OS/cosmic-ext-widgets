@@ -29,6 +29,10 @@ a11y = ["libcosmic/a11y"]
 # revision, and because the source is the same URL as theirs, cargo unifies it
 # with the application's own libcosmic rather than building two.
 libcosmic = { git = "https://github.com/pop-os/libcosmic.git" }
+# The rail's fallback glyph is an entry's first grapheme, not its first
+# `char`. Already in every libcosmic build through cosmic-text, so this adds a
+# name to the manifest, not a crate to the build.
+unicode-segmentation = "1.13"
 
 [dev-dependencies]
 # A software renderer for the widget-tree tests, which need a `cosmic::Renderer`

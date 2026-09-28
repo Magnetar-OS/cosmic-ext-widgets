@@ -18,6 +18,9 @@ It is consumed by git tag, so each version below is a tag of that name.
 - Focus and scroll operations no longer reach a `Reveal`'s content while it
   is still sliding open. Focus could land on content whose keyboard input the
   widget was still holding back, so the first keys typed were lost.
+- `nav_rail` shows the first whole character of an entry without an icon.
+  A flag, emoji sequence or accented letter written with a combining mark
+  used to be cut to its first code point.
 - The README's integration and `examples/sidebar.rs` keep libcosmic's
   nav-bar state in step with the sidebar: shown-at-all lives in
   `core.nav_bar_active()` and the mode is derived from it. Following the old
