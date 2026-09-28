@@ -71,8 +71,9 @@ pub struct SidebarState {
     easing: Easing,
     /// The element is in the tree: something is visible or still moving.
     present: bool,
-    /// The element has been dropped from the tree at least once, so its next
-    /// appearance is a re-appearance and should slide in.
+    /// The element's next appearance enters the tree rather than being there
+    /// from launch, so it should slide in: it has been dropped at least once,
+    /// or it started hidden.
     reappearing: bool,
 }
 
@@ -87,13 +88,14 @@ impl SidebarState {
     /// [`reveal`]'s default 200ms ease-out cubic.
     #[must_use]
     pub fn new(mode: Mode) -> Self {
+        let present = mode != Mode::Hidden;
         Self {
             mode,
             edge: Edge::Left,
             duration: Duration::from_millis(200),
             easing: Easing::EaseOutCubic,
-            present: mode != Mode::Hidden,
-            reappearing: false,
+            present,
+            reappearing: !present,
         }
     }
 
@@ -250,6 +252,19 @@ mod tests {
         state.set_mode(Mode::Rail);
         assert!(state.present);
         assert_eq!(state.mode(), Mode::Rail);
+    }
+
+    #[test]
+    fn starting_hidden_then_showing_slides_in() {
+        // Never in the tree yet, so its first appearance is an entry, and an
+        // entry slides in just as one after a close does.
+        let mut state = SidebarState::new(Mode::Hidden);
+        state.set_mode(Mode::Expanded);
+        assert!(state.present);
+        assert!(
+            state.reappearing,
+            "created open, it would pop in unanimated"
+        );
     }
 
     #[test]
