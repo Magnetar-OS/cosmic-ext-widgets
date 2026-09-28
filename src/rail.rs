@@ -53,9 +53,14 @@ impl<'a, Message: 'a> From<Rail<'a, Message>> for Element<'a, Message> {
     fn from(rail: Rail<'a, Message>) -> Self {
         let spacing = cosmic::theme::spacing();
 
+        // Both columns are `Shrink` wide, set after their children because a
+        // column adopts `Fill` from any child that has it. A rail is as wide
+        // as its widest item; a full-width child such as a divider is then
+        // stretched to that width instead of stretching the rail to the row.
         let items = widget::column::with_children(rail.items)
             .align_x(Alignment::Center)
             .spacing(spacing.space_xxs)
+            .width(Length::Shrink)
             .apply(widget::scrollable)
             .class(cosmic::style::iced::Scrollable::Minimal)
             .height(Length::Fill);
@@ -73,7 +78,7 @@ impl<'a, Message: 'a> From<Rail<'a, Message>> for Element<'a, Message> {
             column = column.push(footer);
         }
 
-        widget::container(column)
+        widget::container(column.width(Length::Shrink))
             .padding(spacing.space_xxs)
             .height(Length::Fill)
             .class(cosmic::theme::Container::custom(nav_bar::nav_bar_style))
@@ -224,5 +229,52 @@ impl<'a, Message: Clone + 'static> From<NavRail<'a, Message>> for Element<'a, Me
             rail = rail.footer(footer);
         }
         rail.into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The entity itself is message enough to route `on_activate`.
+    type Message = segmented_button::Entity;
+
+    fn width(element: &Element<'_, Message>) -> Length {
+        element.as_widget().size_hint().width
+    }
+
+    #[test]
+    fn a_divider_does_not_widen_the_rail() {
+        // A horizontal divider is `Fill` wide. Without a width of its own the
+        // column adopts that, and the rail claims the whole row.
+        let mut model = nav_bar::Model::default();
+        model
+            .insert()
+            .text("Inbox")
+            .icon(widget::icon::from_name("mail-unread-symbolic"))
+            .activate();
+        model
+            .insert()
+            .text("Archive")
+            .icon(widget::icon::from_name("folder-symbolic"))
+            .divider_above(true);
+
+        let element: Element<'_, Message> = nav_rail(&model, std::convert::identity).into();
+        assert_eq!(width(&element), Length::Shrink);
+    }
+
+    #[test]
+    fn a_full_width_header_or_footer_does_not_widen_the_rail() {
+        let item = || rail_item(widget::text::body("A"), "A", false, None::<Message>);
+
+        let element: Element<'_, Message> = rail([item()])
+            .header(widget::divider::horizontal::default())
+            .into();
+        assert_eq!(width(&element), Length::Shrink);
+
+        let element: Element<'_, Message> = rail([item()])
+            .footer(widget::divider::horizontal::default())
+            .into();
+        assert_eq!(width(&element), Length::Shrink);
     }
 }
