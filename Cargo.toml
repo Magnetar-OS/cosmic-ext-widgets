@@ -39,3 +39,9 @@ missing_docs = "warn"
 [lints.clippy]
 all = "warn"
 pedantic = "warn"
+
+# The example's sidebar wiring is the integration the README documents, so its
+# tests run with the crate's own under a plain `cargo test`.
+[[example]]
+name = "sidebar"
+test = true

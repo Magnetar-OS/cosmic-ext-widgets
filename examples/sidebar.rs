@@ -6,11 +6,18 @@
 //!
 //! The header button cycles expanded → rail → hidden. Watch the nav bar slide
 //! between them, interrupt a slide mid-way by clicking again, and right-click
-//! an entry in either width.
+//! an entry in either width. Narrow the window past libcosmic's condensed
+//! breakpoint and the sidebar hides itself; the button then shows and hides
+//! it, as the stock toggle does on a narrow window.
 //!
 //! Note what the application does *not* do: no timer, no per-frame message,
 //! no width in its own state. The only thing it hears from the animation is
 //! [`Message::SidebarClosed`], and only so that the element can leave the tree.
+//!
+//! Shown-at-all stays libcosmic's own nav-bar state, `core.nav_bar_active()`:
+//! libcosmic pads the main content by it, and flips it itself at the condensed
+//! breakpoint. The application keeps only the shape it shows in — full or
+//! rail — and [`App::sync_sidebar`] folds the two into the sidebar's mode.
 
 use cosmic::app::{Core, Settings, Task};
 use cosmic::iced::{Alignment, Length, Size};
@@ -40,6 +47,9 @@ struct App {
     core: Core,
     nav: nav_bar::Model,
     sidebar: SidebarState,
+    /// The width last chosen while the sidebar was showing, so a narrow window
+    /// hiding it and a wide one bringing it back does not change its shape.
+    rail: bool,
     /// Only so the page can show that right-click reached us.
     last_context: Option<String>,
 }
@@ -90,12 +100,14 @@ impl cosmic::Application for App {
             nav.enable(junk, false);
         }
 
-        let app = App {
+        let mut app = App {
             core,
             nav,
             sidebar: SidebarState::default(),
+            rail: false,
             last_context: None,
         };
+        app.sync_sidebar();
 
         (app, Task::none())
     }
@@ -109,11 +121,16 @@ impl cosmic::Application for App {
     }
 
     fn nav_bar(&self) -> Option<Element<'_, cosmic::Action<Self::Message>>> {
-        let expanded = widget::nav_bar(&self.nav, Message::NavSelect)
+        // `Shrink`, and capped as libcosmic caps its own: a nav bar is `Fill`
+        // wide by default and would otherwise claim the whole row.
+        let mut expanded = widget::nav_bar(&self.nav, Message::NavSelect)
             .on_context(Message::NavContext)
             .into_container()
             .width(Length::Shrink)
             .height(Length::Fill);
+        if !self.core.is_condensed() {
+            expanded = expanded.max_width(280);
+        }
 
         let rail = nav_rail(&self.nav, Message::NavSelect)
             .on_context(Message::NavContext)
@@ -136,9 +153,15 @@ impl cosmic::Application for App {
         ]
     }
 
+    fn on_window_resize(&mut self, _id: cosmic::iced::window::Id, _width: f32, _height: f32) {
+        // Crossing libcosmic's condensed breakpoint flips its nav-bar state
+        // without a message of ours; this is where it tells us.
+        self.sync_sidebar();
+    }
+
     fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         match message {
-            Message::ToggleSidebar => self.sidebar.cycle(),
+            Message::ToggleSidebar => self.toggle_sidebar(),
             Message::SidebarClosed => self.sidebar.closed(),
             Message::NavSelect(id) => {
                 self.nav.activate(id);
@@ -180,5 +203,111 @@ impl cosmic::Application for App {
             .align_x(Alignment::Center)
             .align_y(Alignment::Center)
             .into()
+    }
+}
+
+impl App {
+    /// One button, three widths: each press takes the sidebar a step
+    /// narrower, and from nothing back to full.
+    ///
+    /// On a condensed window the button only shows and hides, through
+    /// libcosmic's condensed state, so that hiding the sidebar to read a page
+    /// on a small window does not lose the wide window's choice.
+    fn toggle_sidebar(&mut self) {
+        if self.core.is_condensed() {
+            self.core.nav_bar_toggle_condensed();
+        } else {
+            match self.sidebar.mode() {
+                Mode::Expanded => self.rail = true,
+                Mode::Rail => {
+                    self.rail = false;
+                    self.core.nav_bar_set_toggled(false);
+                }
+                Mode::Hidden => self.core.nav_bar_set_toggled(true),
+            }
+        }
+        self.sync_sidebar();
+    }
+
+    /// Folds libcosmic's shown/hidden nav-bar state and the chosen width into
+    /// the sidebar's mode. Idempotent, so it is called wherever either input
+    /// can change.
+    fn sync_sidebar(&mut self) {
+        let mode = if !self.core.nav_bar_active() {
+            Mode::Hidden
+        } else if self.rail {
+            Mode::Rail
+        } else {
+            Mode::Expanded
+        };
+        self.sidebar.set_mode(mode);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn app() -> App {
+        let mut app = App {
+            core: Core::default(),
+            nav: nav_bar::Model::default(),
+            sidebar: SidebarState::default(),
+            rail: false,
+            last_context: None,
+        };
+        app.sync_sidebar();
+        app
+    }
+
+    #[test]
+    fn the_toggle_walks_all_three_widths_and_back() {
+        let mut app = app();
+        assert_eq!(app.sidebar.mode(), Mode::Expanded);
+
+        app.toggle_sidebar();
+        assert_eq!(app.sidebar.mode(), Mode::Rail);
+
+        app.toggle_sidebar();
+        assert_eq!(app.sidebar.mode(), Mode::Hidden);
+
+        app.toggle_sidebar();
+        assert_eq!(app.sidebar.mode(), Mode::Expanded);
+    }
+
+    #[test]
+    fn libcosmic_knows_whether_the_sidebar_is_shown() {
+        // libcosmic pads the main content's leading edge only when its own
+        // nav-bar state says no nav bar is shown. Driving the sidebar alone
+        // would leave that state `true` while hidden: content flush against
+        // the window edge.
+        let mut app = app();
+        for _ in 0..6 {
+            app.toggle_sidebar();
+            assert_eq!(
+                app.core.nav_bar_active(),
+                app.sidebar.mode() != Mode::Hidden,
+                "in {:?}",
+                app.sidebar.mode()
+            );
+        }
+    }
+
+    #[test]
+    fn a_hide_from_outside_keeps_the_chosen_width() {
+        // What the condensed breakpoint does to libcosmic's state, seen
+        // through the only public door: the sidebar follows it, and comes
+        // back in the width it left in.
+        let mut app = app();
+        app.toggle_sidebar();
+        assert_eq!(app.sidebar.mode(), Mode::Rail);
+
+        app.core.nav_bar_set_toggled(false);
+        app.sync_sidebar();
+        assert_eq!(app.sidebar.mode(), Mode::Hidden);
+
+        app.core.nav_bar_set_toggled(true);
+        app.sync_sidebar();
+        assert_eq!(app.sidebar.mode(), Mode::Rail);
     }
 }

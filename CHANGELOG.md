@@ -15,6 +15,13 @@ It is consumed by git tag, so each version below is a tag of that name.
   footer, used to make the rail claim the whole window row.
 - A `SidebarState` created in `Mode::Hidden` now slides in the first time it
   is shown, instead of appearing at full width in one frame.
+- The README's integration and `examples/sidebar.rs` keep libcosmic's
+  nav-bar state in step with the sidebar: shown-at-all lives in
+  `core.nav_bar_active()` and the mode is derived from it. Following the old
+  instructions, a hidden sidebar left the main content flush against the
+  window edge and a condensed window padded it twice. The README's expanded
+  nav bar is also `Shrink` wide and capped at 280 px, as libcosmic's own is;
+  as written before, it claimed the whole row.
 
 ### Changed
 

@@ -31,11 +31,25 @@ picks the revision and cargo unifies the two.
 ```rust
 use cosmic_ext_widgets::{Mode, SidebarState, nav_rail};
 
-struct App { core: cosmic::Core, nav: nav_bar::Model, sidebar: SidebarState, /* … */ }
+struct App {
+    core: cosmic::Core,
+    nav: nav_bar::Model,
+    sidebar: SidebarState,
+    /// The width chosen while showing: full or rail. Shown-at-all is
+    /// libcosmic's, in `core`.
+    rail: bool,
+    /* … */
+}
 
 enum Message { ToggleSidebar, SidebarClosed, NavSelect(nav_bar::Id), /* … */ }
 
 impl cosmic::Application for App {
+    fn init(core: Core, flags: Self::Flags) -> (Self, Task<Self::Message>) {
+        let mut app = App { core, sidebar: SidebarState::default(), rail: false, /* … */ };
+        app.sync_sidebar();
+        (app, Task::none())
+    }
+
     fn nav_model(&self) -> Option<&nav_bar::Model> {
         // Draw the bar ourselves. This also hides libcosmic's own header
         // toggle — see below, it could not drive three widths anyway.
@@ -43,7 +57,15 @@ impl cosmic::Application for App {
     }
 
     fn nav_bar(&self) -> Option<Element<'_, cosmic::Action<Message>>> {
-        let expanded = widget::nav_bar(&self.nav, Message::NavSelect);
+        // A nav bar is `Fill` wide on its own; shrink and cap it as
+        // libcosmic's default nav bar does, or it claims the whole row.
+        let mut expanded = widget::nav_bar(&self.nav, Message::NavSelect)
+            .into_container()
+            .width(Length::Shrink)
+            .height(Length::Fill);
+        if !self.core.is_condensed() {
+            expanded = expanded.max_width(280);
+        }
         let rail = nav_rail(&self.nav, Message::NavSelect);
         self.sidebar
             .view(expanded, rail, Message::SidebarClosed)
@@ -51,38 +73,88 @@ impl cosmic::Application for App {
     }
 
     fn header_start(&self) -> Vec<Element<'_, Message>> {
-        // libcosmic's own toggle, wired to our three-way cycle.
+        // libcosmic's own toggle, wired to our three widths.
         vec![widget::nav_bar_toggle()
             .active(self.sidebar.mode() != Mode::Hidden)
             .on_toggle(Message::ToggleSidebar)
             .into()]
     }
 
+    fn on_window_resize(&mut self, _id: window::Id, _width: f32, _height: f32) {
+        // Crossing the condensed breakpoint flips libcosmic's nav-bar state
+        // without a message of ours; this is where it tells us.
+        self.sync_sidebar();
+    }
+
     fn update(&mut self, message: Message) -> Task<cosmic::Action<Message>> {
         match message {
-            Message::ToggleSidebar => self.sidebar.cycle(),
+            Message::ToggleSidebar => {
+                if self.core.is_condensed() {
+                    // A narrow window only shows and hides.
+                    self.core.nav_bar_toggle_condensed();
+                } else {
+                    // Each press a step narrower, and from nothing back to full.
+                    match self.sidebar.mode() {
+                        Mode::Expanded => self.rail = true,
+                        Mode::Rail => {
+                            self.rail = false;
+                            self.core.nav_bar_set_toggled(false);
+                        }
+                        Mode::Hidden => self.core.nav_bar_set_toggled(true),
+                    }
+                }
+                self.sync_sidebar();
+            }
             Message::SidebarClosed => self.sidebar.closed(),
             // …
         }
         Task::none()
     }
 }
+
+impl App {
+    /// libcosmic's shown/hidden state and our width, folded into one mode.
+    fn sync_sidebar(&mut self) {
+        let mode = if !self.core.nav_bar_active() {
+            Mode::Hidden
+        } else if self.rail {
+            Mode::Rail
+        } else {
+            Mode::Expanded
+        };
+        self.sidebar.set_mode(mode);
+    }
+}
 ```
 
-`cycle` walks expanded → rail → hidden → expanded. `set_mode` goes straight to
-one and is idempotent, so it is safe to call on every event that might have
-changed the answer: if libcosmic's condensed breakpoint should hide the
-sidebar on narrow windows, call it from `on_window_resize`.
+`set_mode` goes straight to a mode and is idempotent, so `sync_sidebar` is
+safe to call on every event that might have changed the answer.
+
+### Keep libcosmic's nav-bar state in step
+
+libcosmic decides the main content's leading padding from
+`core.nav_bar_active()`, not from whether `nav_bar()` returned anything. So
+shown-at-all has to stay in `core`: hide the sidebar through
+`core.nav_bar_set_toggled` (or `nav_bar_toggle_condensed` on a condensed
+window) and derive the mode from `core.nav_bar_active()`, as above. Drive
+`SidebarState` alone and a hidden sidebar leaves the content flush against the
+window edge, while a condensed window pads it twice. Keeping it in `core` also
+brings libcosmic's responsive behaviour with it: the condensed breakpoint hides
+the sidebar on a narrow window, and `on_window_resize` is where the app hears
+about it. `Mode::next` / `cycle` walk the three widths without touching `core`,
+so they suit a sidebar hosted outside the nav-bar slot.
 
 ### The toggle has to be yours
 
 libcosmic draws its header toggle only when `nav_model()` returns `Some`, and
-that toggle is binary — it flips `core.nav_bar_active()`, which the
-application cannot intercept and which cannot express three widths. So a
-three-width sidebar returns `None` from `nav_model()` and puts
-`widget::nav_bar_toggle()` in `header_start()` itself, as above. It is
-libcosmic's own widget, so the header still looks like every other COSMIC
-application's.
+that toggle is binary: it flips `core`'s nav-bar state, which cannot express
+three widths. So a three-width sidebar returns `None` from `nav_model()` and
+puts `widget::nav_bar_toggle()` in `header_start()` itself, as above, driving
+`core` for the hidden step. It is libcosmic's own widget, so the header still
+looks like every other COSMIC application's.
+
+The example, `examples/sidebar.rs`, is this integration in full, and its tests
+check that `core` and the sidebar agree at every press.
 
 ### The rail follows the model
 

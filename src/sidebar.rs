@@ -13,8 +13,16 @@
 //! // In the application:
 //! sidebar: SidebarState,
 //!
-//! // On the nav-bar toggle, and in `on_window_resize` if libcosmic's
-//! // condensed breakpoint should hide it:
+//! // On the nav-bar toggle and in `on_window_resize`, with shown-at-all
+//! // read from libcosmic's own state so that it pads the content to match
+//! // (the README's "Keep libcosmic's nav-bar state in step"):
+//! let mode = if !self.core.nav_bar_active() {
+//!     Mode::Hidden
+//! } else if self.rail {
+//!     Mode::Rail
+//! } else {
+//!     Mode::Expanded
+//! };
 //! self.sidebar.set_mode(mode);
 //!
 //! // One message, so the state learns the closing slide is over:
@@ -139,7 +147,12 @@ impl SidebarState {
         }
     }
 
-    /// Move to [`Mode::next`] — what a nav-bar toggle wants.
+    /// Move to [`Mode::next`].
+    ///
+    /// This does not touch libcosmic's nav-bar state, so in the nav-bar slot
+    /// the toggle should hide through `core` and derive the mode with
+    /// [`set_mode`](Self::set_mode) instead; see the README. `cycle` suits a
+    /// sidebar hosted outside that slot.
     pub const fn cycle(&mut self) {
         self.set_mode(self.mode.next());
     }
