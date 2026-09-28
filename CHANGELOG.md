@@ -25,6 +25,10 @@ It is consumed by git tag, so each version below is a tag of that name.
 
 ### Changed
 
+- `Reveal::duration` and `Reveal::easing` take effect when changed on a live
+  widget, from its next slide. They used to be read only when the widget was
+  first created. A slide already running finishes with the timing it started
+  with.
 - The crate is marked `publish = false`: it builds on libcosmic, which is only
   published as a git repository, so crates.io cannot take it.
 

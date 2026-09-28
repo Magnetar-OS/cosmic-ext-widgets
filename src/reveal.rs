@@ -127,12 +127,18 @@ impl<Message> Reveal<'_, Message> {
     }
 
     /// Length of the slide. Default 200ms — iced's `quick`.
+    ///
+    /// A change between views applies from the next slide; one already
+    /// running finishes as it started.
     pub const fn duration(mut self, duration: Duration) -> Self {
         self.duration = duration;
         self
     }
 
     /// Default ease-out cubic: fast to leave, slow to arrive.
+    ///
+    /// A change between views applies from the next slide, as for
+    /// [`duration`](Self::duration).
     pub const fn easing(mut self, easing: Easing) -> Self {
         self.easing = easing;
         self
@@ -179,6 +185,9 @@ struct Frame {
 
 struct State {
     anim: Animation<bool>,
+    /// What `anim` was last built with, so that a change is noticed.
+    duration: Duration,
+    easing: Easing,
     /// True while a transition is running, and on creation, so that the first
     /// settled frame after either is noticed exactly once.
     unsettled: bool,
@@ -188,6 +197,8 @@ impl State {
     fn new(open: bool, easing: Easing, duration: Duration) -> Self {
         Self {
             anim: Animation::new(open).easing(easing).duration(duration),
+            duration,
+            easing,
             unsettled: true,
         }
     }
@@ -202,9 +213,18 @@ impl State {
 
     /// The application changed `open` since the last view. Returns whether it
     /// had in fact changed, and so whether a slide has just started.
-    fn retarget(&mut self, open: bool, now: Instant) -> bool {
+    ///
+    /// The slide runs with the `duration` and `easing` the widget has now.
+    /// They are applied only here, as a slide starts, because re-timing one
+    /// in flight would jump it to wherever the new timing puts it.
+    fn retarget(&mut self, open: bool, duration: Duration, easing: Easing, now: Instant) -> bool {
         if self.anim.value() == open {
             return false;
+        }
+        if (duration, easing) != (self.duration, self.easing) {
+            self.anim = self.anim.clone().duration(duration).easing(easing);
+            self.duration = duration;
+            self.easing = easing;
         }
         self.anim.go_mut(open, now);
         self.unsettled = true;
@@ -319,7 +339,7 @@ impl<Message: Clone> Widget<Message, cosmic::Theme, cosmic::Renderer> for Reveal
         let now = Instant::now();
 
         // The application changed its mind since the last view.
-        if state.retarget(self.open, now) {
+        if state.retarget(self.open, self.duration, self.easing, now) {
             shell.request_redraw();
             shell.invalidate_layout();
         }
@@ -473,9 +493,10 @@ mod tests {
     use super::*;
 
     const QUICK: Duration = Duration::from_millis(200);
+    const EASE: Easing = Easing::EaseOutCubic;
 
     fn state(open: bool) -> State {
-        State::new(open, Easing::EaseOutCubic, QUICK)
+        State::new(open, EASE, QUICK)
     }
 
     #[test]
@@ -565,8 +586,11 @@ mod tests {
             }
         );
 
-        assert!(state.retarget(false, now), "the slide starts");
-        assert!(!state.retarget(false, now), "and only starts once");
+        assert!(state.retarget(false, QUICK, EASE, now), "the slide starts");
+        assert!(
+            !state.retarget(false, QUICK, EASE, now),
+            "and only starts once"
+        );
 
         // Mid-slide: keep the frames coming, say nothing.
         let mid = state.redraw(false, now + QUICK / 2);
@@ -591,10 +615,10 @@ mod tests {
         let now = Instant::now();
         let _ = state.redraw(true, now);
 
-        state.retarget(false, now);
+        state.retarget(false, QUICK, EASE, now);
         let _ = state.redraw(false, now + QUICK / 2);
         // The application changed its mind before the slide finished.
-        state.retarget(true, now + QUICK / 2);
+        state.retarget(true, QUICK, EASE, now + QUICK / 2);
 
         let settled = state.redraw(true, now + QUICK * 3);
         assert!(!settled.closed, "it ended up open, so nothing closed");
@@ -607,10 +631,10 @@ mod tests {
         let now = Instant::now();
         let _ = state.redraw(true, now);
 
-        state.retarget(false, now);
+        state.retarget(false, QUICK, EASE, now);
         assert!(state.redraw(false, now + QUICK * 2).closed);
 
-        state.retarget(true, now + QUICK * 2);
+        state.retarget(true, QUICK, EASE, now + QUICK * 2);
         assert!(!state.redraw(true, now + QUICK * 4).closed);
     }
 
@@ -624,9 +648,50 @@ mod tests {
         assert!(state.progress(now) <= 0.0);
         assert!(!state.settled_open(now));
 
-        state.retarget(true, now);
+        state.retarget(true, QUICK, EASE, now);
         assert!(state.progress(now + QUICK / 2) > 0.0);
         assert!(state.progress(now + QUICK * 2) >= 1.0);
         assert!(state.settled_open(now + QUICK * 2));
+    }
+
+    #[test]
+    fn a_new_duration_times_the_next_slide() {
+        let mut state = state(true);
+        let now = Instant::now();
+        let _ = state.redraw(true, now);
+
+        // The application asked for a slower slide after the widget was
+        // created; the next slide takes that long.
+        assert!(state.retarget(false, QUICK * 2, EASE, now));
+        assert!(state.anim.is_animating(now + QUICK * 3 / 2));
+        assert!(!state.anim.is_animating(now + QUICK * 2));
+    }
+
+    #[test]
+    fn a_new_duration_leaves_the_running_slide_alone() {
+        let mut state = state(true);
+        let now = Instant::now();
+        let _ = state.redraw(true, now);
+        state.retarget(false, QUICK, EASE, now);
+
+        // Same target, new timing, mid-slide: nothing restarts or jumps.
+        let before = state.progress(now + QUICK / 2);
+        assert!(!state.retarget(false, QUICK * 4, EASE, now + QUICK / 2));
+        assert!((state.progress(now + QUICK / 2) - before).abs() < f32::EPSILON);
+        assert!(!state.anim.is_animating(now + QUICK));
+    }
+
+    #[test]
+    fn a_new_easing_shapes_the_next_slide() {
+        let mut state = state(true);
+        let now = Instant::now();
+        let _ = state.redraw(true, now);
+
+        state.retarget(false, QUICK, Easing::Linear, now);
+        let halfway = state.progress(now + QUICK / 2);
+        assert!(
+            (halfway - 0.5).abs() < 0.01,
+            "linear halfway, got {halfway}"
+        );
     }
 }
