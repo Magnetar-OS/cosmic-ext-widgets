@@ -8,6 +8,16 @@ It is consumed by git tag, so each version below is a tag of that name.
 
 ## [Unreleased]
 
+### Added
+
+- With the `a11y` feature (default), a `Reveal` that has settled open returns
+  its content's accessibility nodes, so what is inside a `reveal` — a sidebar
+  drawn through `SidebarState` included — is no longer missing from the
+  accessibility tree the widgets build. Closed or mid-slide it returns none,
+  the same condition under which it withholds focus and input. The feature
+  now depends on `iced_accessibility`, named by libcosmic's git URL so that it
+  is the copy libcosmic itself builds against.
+
 ### Changed
 
 - The minimum supported Rust version is 1.99.0, raised from 1.98.1. The pinned

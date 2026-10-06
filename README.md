@@ -189,26 +189,32 @@ so the behaviour that matters is unit-tested rather than watched.
 
 ## Features
 
-- `a11y` (default) — give the rail's icon-only buttons an accessible name.
-  Without it the label exists only in a tooltip, which reaches nothing but the
-  eye. On by default because libcosmic's own default features include `a11y`,
-  and because the setter this needs is itself behind that feature upstream.
+- `a11y` (default) — give the rail's icon-only buttons an accessible name, and
+  have a `reveal` hand on its content's accessibility nodes. Without it a rail
+  label exists only in a tooltip, which reaches nothing but the eye, and what
+  is inside a `reveal` is missing from the accessibility tree. On by default
+  because libcosmic's own default features include `a11y`, and because what
+  this needs is itself behind that feature upstream.
 
-## Known gap: `reveal` and the accessibility tree
+## `reveal` and the accessibility tree
 
-Content inside a `reveal` does not appear in the accessibility tree, even when
-fully open. `Widget::a11y_nodes` returns an empty tree unless a widget
-overrides it, and the override cannot be written from outside libcosmic:
-its return type is `iced_accessibility::A11yTree`, and libcosmic keeps
-`iced_accessibility` as a private dependency. Depending on
-`pop-os/iced` directly would give a *second* copy of the crate — a different
-type of the same name, which does not satisfy the trait.
+A `reveal` that has settled open returns its content's accessibility nodes
+unchanged, adding none of its own, so a sidebar drawn through `SidebarState`
+is in the tree like any other content. While it is closed or sliding it
+returns none: the same condition under which it withholds input, focus and
+overlays, so a screen reader is not offered a control that cannot be used yet.
 
-The fix is one line upstream, `pub use iced_accessibility;` in libcosmic's
-`src/lib.rs`, after which `Reveal` can forward to its child under the same
-condition `draw` and `update` already use. Until then a sidebar drawn through
-`SidebarState` is invisible to a screen reader. The rail's buttons carry their
-names either way, so the gap is `reveal`'s, not the rail's.
+`Widget::a11y_nodes` returns `iced_accessibility::A11yTree`, a type libcosmic
+uses but does not re-export. This crate depends on `iced_accessibility` by
+libcosmic's own git URL, as it does on libcosmic, so cargo resolves the one
+copy libcosmic is built against and the consumer's `Cargo.lock` gains no
+package. A consumer that pins libcosmic to a `rev` or `branch` in its manifest
+gives it a different source, and would have to pin this the same way.
+
+What reaches a screen reader is libcosmic's to decide. At libcosmic `5a8bd94`
+its window shell does not collect `a11y_nodes` from the widget tree at all,
+for its own widgets or anyone's; when it does, a `reveal`'s content is there
+to be collected.
 
 ## One thing to know about the nav-bar slot
 

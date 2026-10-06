@@ -23,8 +23,10 @@
 //! # Features
 //!
 //! - `a11y` (default) — give the rail's icon-only buttons an accessible name,
-//!   which is otherwise only in a tooltip. Forwards to `libcosmic/a11y`, and
-//!   is on by default because libcosmic's own defaults include it.
+//!   which is otherwise only in a tooltip, and have a [`Reveal`] hand on its
+//!   content's accessibility nodes once it has settled open. Forwards to
+//!   `libcosmic/a11y`, and is on by default because libcosmic's own defaults
+//!   include it.
 
 pub mod rail;
 pub mod reveal;

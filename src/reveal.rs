@@ -5,17 +5,17 @@
 //!
 //! # Accessibility
 //!
-//! Content inside a [`Reveal`] does not reach the accessibility tree, even
-//! when fully open. `Widget::a11y_nodes` returns an empty tree unless a widget
-//! overrides it, and the override cannot be written from outside libcosmic:
-//! it returns `iced_accessibility::A11yTree`, and libcosmic keeps
-//! `iced_accessibility` as a private dependency. Naming `pop-os/iced` as a
-//! dependency here would build a second copy of that crate, whose `A11yTree`
-//! is a different type and so does not satisfy the trait.
+//! With the `a11y` feature (on by default), a [`Reveal`] that has settled
+//! open hands on its content's accessibility nodes unchanged: it adds no node
+//! of its own, as a container adds none. While it is closed or sliding it
+//! reports nothing, the same condition under which it withholds input, focus
+//! and overlays, so a screen reader is never offered a control that cannot
+//! be reached yet.
 //!
-//! One line upstream — `pub use iced_accessibility;` — closes it, after which
-//! the override belongs here, forwarding to the child under the same
-//! settled-open condition that `draw` and `update` already use.
+//! `Widget::a11y_nodes` returns `iced_accessibility::A11yTree`, a type
+//! libcosmic uses without re-exporting. This crate names `iced_accessibility`
+//! by libcosmic's own git source, so cargo resolves the one copy libcosmic is
+//! built against; see `Cargo.toml`.
 
 use std::time::{Duration, Instant};
 
@@ -491,6 +491,34 @@ impl<Message: Clone> Widget<Message, cosmic::Theme, cosmic::Renderer> for Reveal
             translation,
         )
     }
+
+    #[cfg(feature = "a11y")]
+    fn a11y_nodes(
+        &self,
+        layout: Layout<'_>,
+        tree: &Tree,
+        cursor: mouse::Cursor,
+    ) -> iced_accessibility::A11yTree {
+        // The content's nodes exist only once it has settled open, the same
+        // condition as `operate`: a node offered mid-slide would name a
+        // control that takes neither focus nor input yet.
+        if !tree
+            .state
+            .downcast_ref::<State>()
+            .settled_open(Instant::now())
+        {
+            return iced_accessibility::A11yTree::default();
+        }
+        self.content.as_widget().a11y_nodes(
+            layout
+                .children()
+                .next()
+                .unwrap()
+                .with_virtual_offset(layout.virtual_offset()),
+            &tree.children[0],
+            cursor,
+        )
+    }
 }
 
 impl<'a, Message: Clone + 'a> From<Reveal<'a, Message>> for Element<'a, Message> {
@@ -792,6 +820,89 @@ mod tests {
 
             let mut element = input(true);
             assert_eq!(focusables(&mut element, &mut tree), 0);
+        }
+    }
+
+    /// `a11y_nodes` built through a real widget tree, with a named button as
+    /// the content.
+    #[cfg(feature = "a11y")]
+    mod accessibility {
+        use cosmic::widget;
+        use iced_accessibility::accesskit::Role;
+
+        use super::*;
+
+        /// Long enough that no test outruns a slide.
+        const SLOW: Duration = Duration::from_secs(60);
+
+        fn save(open: bool) -> Element<'static, ()> {
+            reveal(widget::button::text("Save").on_press(()))
+                .open(open)
+                .duration(SLOW)
+                .into()
+        }
+
+        /// Whether the accessibility tree built for `element` holds a button
+        /// named "Save".
+        fn names_the_button(element: &Element<'_, ()>, tree: &Tree) -> bool {
+            // The reveal, the button inside it, and the button's own content:
+            // each asks its layout for one child.
+            let size = Size::new(200.0, 32.0);
+            let node = layout::Node::with_children(
+                size,
+                vec![layout::Node::with_children(
+                    size,
+                    vec![layout::Node::new(size)],
+                )],
+            );
+            let nodes = element.as_widget().a11y_nodes(
+                Layout::new(&node),
+                tree,
+                mouse::Cursor::Unavailable,
+            );
+            nodes.root().iter().chain(nodes.children()).any(|node| {
+                node.node().role() == Role::Button && node.node().label() == Some("Save")
+            })
+        }
+
+        #[test]
+        fn settled_open_content_is_in_the_tree() {
+            let element = save(true);
+            let tree = Tree::new(&element);
+            assert!(names_the_button(&element, &tree));
+        }
+
+        #[test]
+        fn closed_content_is_not_in_the_tree() {
+            let element = save(false);
+            let tree = Tree::new(&element);
+            assert!(!names_the_button(&element, &tree));
+        }
+
+        #[test]
+        fn closing_content_leaves_the_tree_as_the_slide_starts() {
+            let element = save(true);
+            let mut tree = Tree::new(&element);
+            tree.state
+                .downcast_mut::<State>()
+                .retarget(false, SLOW, EASE, Instant::now());
+
+            let element = save(false);
+            assert!(!names_the_button(&element, &tree));
+        }
+
+        #[test]
+        fn opening_content_is_not_in_the_tree_until_it_settles() {
+            // Mid-slide the button is on screen in part and takes no input,
+            // so naming it would offer a control that cannot be used yet.
+            let element = save(false);
+            let mut tree = Tree::new(&element);
+            tree.state
+                .downcast_mut::<State>()
+                .retarget(true, SLOW, EASE, Instant::now());
+
+            let element = save(true);
+            assert!(!names_the_button(&element, &tree));
         }
     }
 }

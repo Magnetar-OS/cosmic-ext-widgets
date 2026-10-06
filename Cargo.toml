@@ -19,10 +19,12 @@ publish = false
 [features]
 default = ["a11y"]
 # Accessible names for the rail's icon-only buttons, whose label is otherwise
-# only in a tooltip and so reaches nothing but the eye. On by default because
-# libcosmic's own default features include `a11y`, and because the setter this
-# needs — `button::name` — is itself behind that feature upstream.
-a11y = ["libcosmic/a11y"]
+# only in a tooltip and so reaches nothing but the eye, and a `Reveal` that
+# hands its content's accessibility nodes on. On by default because
+# libcosmic's own default features include `a11y`, and because what this
+# needs — `button::name`, `Widget::a11y_nodes` — is itself behind that feature
+# upstream.
+a11y = ["libcosmic/a11y", "dep:iced_accessibility"]
 
 [dependencies]
 # Unpinned, like every COSMIC application: the consumer's Cargo.lock decides the
@@ -33,6 +35,12 @@ libcosmic = { git = "https://github.com/pop-os/libcosmic.git" }
 # `char`. Already in every libcosmic build through cosmic-text, so this adds a
 # name to the manifest, not a crate to the build.
 unicode-segmentation = "1.13"
+# The return type of `Widget::a11y_nodes`, which libcosmic uses but does not
+# re-export. Named by the same git source as libcosmic, so cargo resolves the
+# very crate libcosmic and iced_core are built against — one `A11yTree` type
+# in the graph, which is the only one the trait accepts. It adds a line to
+# this package's entry in Cargo.lock and no package.
+iced_accessibility = { git = "https://github.com/pop-os/libcosmic.git", optional = true }
 
 [dev-dependencies]
 # A software renderer for the widget-tree tests, which need a `cosmic::Renderer`
