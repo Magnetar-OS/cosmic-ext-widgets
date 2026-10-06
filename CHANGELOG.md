@@ -8,6 +8,8 @@ It is consumed by git tag, so each version below is a tag of that name.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-06
+
 ### Added
 
 - With the `a11y` feature (default), a `Reveal` that has settled open returns
@@ -75,6 +77,7 @@ It is consumed by git tag, so each version below is a tag of that name.
   their accessible name.
 - `examples/sidebar.rs`: a window that runs the three widths.
 
-[Unreleased]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Magnetar-OS/cosmic-ext-widgets/releases/tag/v1.0.0
