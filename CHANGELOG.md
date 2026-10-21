@@ -8,6 +8,11 @@ It is consumed by git tag, so each version below is a tag of that name.
 
 ## [Unreleased]
 
+### Changed
+
+- The minimum supported Rust version is 1.99.1, raised from 1.99.0. The pinned
+  toolchain and `rust-version` move together.
+
 ## [1.1.0] - 2026-10-06
 
 ### Added
