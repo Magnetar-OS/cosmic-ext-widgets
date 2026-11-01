@@ -183,7 +183,13 @@ use cosmic_ext_widgets::header_button;
 fn header_start(&self) -> Vec<Element<'_, Message>> {
     vec![
         header_button(icon::from_name("document-new-symbolic"), fl!("new"), Message::New)
-            .focused(self.core.focused_window() == self.core.main_window_id())
+            // The test libcosmic's header bar uses for its window controls.
+            .focused(
+                self.core
+                    .focus_chain()
+                    .iter()
+                    .any(|id| Some(*id) == self.core.main_window_id()),
+            )
             .into(),
     ]
 }
