@@ -8,6 +8,14 @@ It is consumed by git tag, so each version below is a tag of that name.
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-01
+
+### Fixed
+
+- A rail whose items overflow embeds its scrollbar beside them instead of
+  floating it over their right edge. The rail is 16px wider only while it
+  scrolls.
+
 ## [1.3.0] - 2026-11-01
 
 ### Added
@@ -101,7 +109,8 @@ It is consumed by git tag, so each version below is a tag of that name.
   their accessible name.
 - `examples/sidebar.rs`: a window that runs the three widths.
 
-[Unreleased]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.0.1...v1.1.0
