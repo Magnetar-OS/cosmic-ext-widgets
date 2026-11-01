@@ -64,6 +64,10 @@ impl<'a, Message: 'a> From<Rail<'a, Message>> for Element<'a, Message> {
             .width(Length::Shrink)
             .apply(widget::scrollable)
             .class(cosmic::style::iced::Scrollable::Minimal)
+            // Embedded rather than floating: the items are icon buttons as
+            // wide as the rail, and a floating bar covered their right edge
+            // once the list overflowed. The rail widens only then.
+            .spacing(spacing.space_xxxs)
             .height(Length::Fill);
 
         let mut column = widget::column::with_capacity(3)
