@@ -8,6 +8,14 @@ It is consumed by git tag, so each version below is a tag of that name.
 
 ## [Unreleased]
 
+### Added
+
+- `header_button` / `HeaderButton`: an icon button for the header bar with
+  libcosmic's window-control size (a 16px icon, 8px padding), a tooltip below
+  it and its label as the accessible name. `button::icon` pads by the
+  density's `space_xxs`, so at Spacious density it is 40px tall and the
+  header bar's 32px row cuts off its top.
+
 ### Changed
 
 - The minimum supported Rust version is 1.99.1, raised from 1.99.0. The pinned

@@ -7,6 +7,7 @@ Widgets libcosmic does not have, built the way libcosmic builds its own.
 | Collapsing the nav bar | instant show/hide, at every call site | `reveal` — a width (or height) slide, interruptible, on any of the four edges |
 | Collapsed nav bar | gone | `rail` / `nav_rail` — icons with tooltips, on the nav-bar surface |
 | Both, in the nav-bar slot | — | `SidebarState` — expanded → rail → hidden, animated, dropped from the tree once hidden |
+| Icon button in the header bar | `button::icon`, cut off at Spacious density | `header_button` — the window controls' size at every density, with a tooltip and an accessible name |
 
 Each is usable alone. `reveal` wraps any element; `nav_rail` takes the same
 `nav_bar::Model` the stock nav bar does; `rail_item` takes arbitrary content
@@ -173,6 +174,27 @@ past. `Edge::Left` (the default) is a nav bar; `Edge::Right` is an inspector
 panel; `Edge::Top` and `Edge::Bottom` are drawers. `SidebarState` also uses it
 to decide which way round the two widths sit, so that whichever one is showing
 stays against its own edge.
+
+### Header-bar buttons
+
+```rust
+use cosmic_ext_widgets::header_button;
+
+fn header_start(&self) -> Vec<Element<'_, Message>> {
+    vec![
+        header_button(icon::from_name("document-new-symbolic"), fl!("new"), Message::New)
+            .focused(self.core.focused_window() == self.core.main_window_id())
+            .into(),
+    ]
+}
+```
+
+The header bar lays its content out in a fixed 32px row. `button::icon` pads
+its icon by the theme's `space_xxs`, which is 12px at Spacious density, so
+the button is 40px tall and the header cuts off its top. `header_button` uses
+the 16px icon and 8px padding of libcosmic's own window controls, which fill
+the row exactly at every density. `focused` dims it with the window controls
+when the window loses focus; it defaults to `true`.
 
 ## How the animation runs
 
