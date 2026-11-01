@@ -2,7 +2,7 @@
 
 //! Widgets libcosmic does not have, built the way libcosmic builds its own.
 //!
-//! Four things, each usable on its own:
+//! Five things, each usable on its own:
 //!
 //! - [`reveal()`] — a wrapper that animates its content's width (or height)
 //!   between zero and its natural size, the way a sidebar slides in and out.
@@ -15,6 +15,8 @@
 //! - [`header_button()`] — an icon button sized to the header bar's row at
 //!   every interface density. libcosmic's `button::icon` grows with the
 //!   density and is cut off by the header at Spacious.
+//! - [`search_field()`] — libcosmic's search field with a clear button that
+//!   is there only when the field has text.
 //!
 //! Animation follows libcosmic's own widgets (`toggler`, `cards`): the clock
 //! lives in the widget tree, driven from `RedrawRequested`, so the application
@@ -34,9 +36,11 @@
 pub mod header;
 pub mod rail;
 pub mod reveal;
+pub mod search;
 pub mod sidebar;
 
 pub use header::{HeaderButton, header_button};
 pub use rail::{NavRail, Rail, nav_rail, rail, rail_item};
 pub use reveal::{Edge, Reveal, reveal};
+pub use search::search_field;
 pub use sidebar::{Mode, SidebarState};

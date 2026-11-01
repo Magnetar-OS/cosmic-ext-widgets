@@ -8,6 +8,7 @@ Widgets libcosmic does not have, built the way libcosmic builds its own.
 | Collapsed nav bar | gone | `rail` / `nav_rail` — icons with tooltips, on the nav-bar surface |
 | Both, in the nav-bar slot | — | `SidebarState` — expanded → rail → hidden, animated, dropped from the tree once hidden |
 | Icon button in the header bar | `button::icon`, cut off at Spacious density | `header_button` — the window controls' size at every density, with a tooltip and an accessible name |
+| Search field | `search_input(..).on_clear(..)`, its clear button shown on an empty field | `search_field` — the clear button only when there is text, held off the pill's curve |
 
 Each is usable alone. `reveal` wraps any element; `nav_rail` takes the same
 `nav_bar::Model` the stock nav bar does; `rail_item` takes arbitrary content
