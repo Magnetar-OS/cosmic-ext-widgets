@@ -8,6 +8,8 @@ It is consumed by git tag, so each version below is a tag of that name.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-01
+
 ### Added
 
 - `header_button` / `HeaderButton`: an icon button for the header bar with
@@ -90,7 +92,8 @@ It is consumed by git tag, so each version below is a tag of that name.
   their accessible name.
 - `examples/sidebar.rs`: a window that runs the three widths.
 
-[Unreleased]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/Magnetar-OS/cosmic-ext-widgets/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/Magnetar-OS/cosmic-ext-widgets/releases/tag/v1.0.0
