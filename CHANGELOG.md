@@ -8,6 +8,15 @@ It is consumed by git tag, so each version below is a tag of that name.
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-11-28
+
+### Changed
+
+- The minimum supported Rust version is 1.100.1, raised from 1.100.0. The
+  pinned toolchain and `rust-version` move together.
+- The lockfile builds against libcosmic `009fb9d` and the latest compatible
+  releases.
+
 ## [1.3.2] - 2026-11-21
 
 ### Changed
